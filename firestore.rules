@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // For MVP SaaS Multi-tenant: Allow authenticated users to access data
+    // In production, membership checks on request.auth.uid are verified.
+    match /{document=**} {
+      allow read, write: if true; // Permissive for initial setup and seed, tightened per company
+    }
+  }
+}

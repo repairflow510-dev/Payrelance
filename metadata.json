@@ -1,0 +1,6 @@
+{
+  "name": "PayRelance",
+  "description": "SaaS B2B de relance et recouvrement automatique des factures impayées pour les PME.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
