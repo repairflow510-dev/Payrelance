@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth, AuthProvider } from './lib/authContext';
 import { 
   Customer, Invoice, Payment, PaymentPromise, Dispute, 
@@ -28,6 +28,10 @@ import PaymentModal from './components/PaymentModal';
 import PromiseAndDisputeModal from './components/PromiseAndDisputeModal';
 import CSVImportModal from './components/CSVImportModal';
 import PublicPaymentPage from './components/PublicPaymentPage';
+import CreateInvoiceModal from './components/CreateInvoiceModal';
+import CreateCustomerModal from './components/CreateCustomerModal';
+import FloatingQuickAction from './components/FloatingQuickAction';
+import NotificationPanel from './components/NotificationPanel';
 
 function AppContent() {
   const { currentCompany, currentUser, loading } = useAuth();
@@ -44,6 +48,9 @@ function AppContent() {
   const [paymentModalInvoice, setPaymentModalInvoice] = useState<Invoice | null>(null);
   const [promiseDisputeInvoice, setPromiseDisputeInvoice] = useState<{ invoice: Invoice; mode: 'PROMISE' | 'DISPUTE' } | null>(null);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
 
   // Public Link Check (e.g. /#/pay/{token})
   const [publicToken, setPublicToken] = useState<string | null>(null);
@@ -230,13 +237,14 @@ function AppContent() {
           </span>
           <button
             type="button"
-            onClick={() => setCurrentTab('reminders')}
+            onClick={() => setNotificationsPanelOpen(true)}
             className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-slate-800 relative cursor-pointer"
-            title="Relances"
+            title="Alertes et notifications"
+            aria-label="Ouvrir les notifications"
           >
             <Bell className="w-5 h-5" />
             {unreadNotifsCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-slate-900" />
             )}
           </button>
         </div>
@@ -252,6 +260,11 @@ function AppContent() {
         unreadCount={unreadNotifsCount}
         isOpenMobile={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        onOpenNotifications={() => setNotificationsPanelOpen(true)}
+        onOpenAuth={(mode) => {
+          setAuthModalMode(mode || 'login');
+          setAuthModalOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
@@ -267,6 +280,10 @@ function AppContent() {
               onNavigate={handleNavigate}
               onRunEngine={triggerReminderEngine}
               engineRunning={engineRunning}
+              onAddInvoice={() => setCreateInvoiceOpen(true)}
+              onCreateCustomer={() => setCreateCustomerOpen(true)}
+              onOpenNotifications={() => setNotificationsPanelOpen(true)}
+              unreadNotifsCount={unreadNotifsCount}
             />
           )}
 
@@ -374,6 +391,51 @@ function AppContent() {
 
       {showOnboarding && (
         <OnboardingModal onComplete={() => setShowOnboarding(false)} />
+      )}
+
+      {createInvoiceOpen && (
+        <CreateInvoiceModal
+          isOpen={true}
+          onClose={() => setCreateInvoiceOpen(false)}
+          customers={customers}
+          currency={currentCompany.currency}
+          onSuccess={() => setCreateInvoiceOpen(false)}
+        />
+      )}
+
+      {createCustomerOpen && (
+        <CreateCustomerModal
+          isOpen={true}
+          onClose={() => setCreateCustomerOpen(false)}
+          onSuccess={() => setCreateCustomerOpen(false)}
+        />
+      )}
+
+      {/* Notification Slide-Over Panel */}
+      <NotificationPanel
+        isOpen={notificationsPanelOpen}
+        onClose={() => setNotificationsPanelOpen(false)}
+        notifications={notifications}
+        onNavigate={handleNavigate}
+      />
+
+      {/* Authentication & Registration & OTP Modal */}
+      {authModalOpen && (
+        <AuthModal
+          isOpen={true}
+          onClose={() => setAuthModalOpen(false)}
+          defaultMode={authModalMode}
+        />
+      )}
+
+      {/* Global Floating Quick Action Button accessible from any view */}
+      {currentTab !== 'dashboard' && (
+        <FloatingQuickAction
+          onAddInvoice={() => setCreateInvoiceOpen(true)}
+          onCreateCustomer={() => setCreateCustomerOpen(true)}
+          onRunEngine={triggerReminderEngine}
+          engineRunning={engineRunning}
+        />
       )}
     </div>
   );

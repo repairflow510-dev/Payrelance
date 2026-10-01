@@ -13,6 +13,8 @@ interface SidebarProps {
   unreadCount?: number;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  onOpenNotifications?: () => void;
+  onOpenAuth?: (mode?: 'login' | 'register') => void;
 }
 
 export default function Sidebar({ 
@@ -20,7 +22,9 @@ export default function Sidebar({
   onSelectTab, 
   unreadCount = 0,
   isOpenMobile = false,
-  onCloseMobile
+  onCloseMobile,
+  onOpenNotifications,
+  onOpenAuth,
 }: SidebarProps) {
   const { currentCompany, currentUser, currentRole, logout } = useAuth();
 
@@ -89,7 +93,7 @@ export default function Sidebar({
               </button>
             </div>
 
-            {/* Active Company Card */}
+            {/* Active Company Card with Notification button */}
             <div className="mt-4 p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between">
               <div className="overflow-hidden pr-2">
                 <div className="text-xs font-bold text-white truncate">
@@ -100,6 +104,24 @@ export default function Sidebar({
                   <span className="truncate">{currentCompany?.currency || 'FCFA'} • Plan {currentCompany?.plan || 'PRO'}</span>
                 </div>
               </div>
+
+              {onOpenNotifications && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenNotifications();
+                    if (onCloseMobile) onCloseMobile();
+                  }}
+                  className="p-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white relative transition-colors cursor-pointer shrink-0"
+                  title="Ouvrir les notifications"
+                  aria-label="Ouvrir le volet des notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-slate-900" />
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
@@ -156,13 +178,29 @@ export default function Sidebar({
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => logout()}
-              title="Se déconnecter"
-              className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+
+            <div className="flex items-center gap-1">
+              {onOpenAuth && (
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('login')}
+                  title="Changer de compte ou se connecter"
+                  className="text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                  aria-label="Connexion ou inscription"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => logout()}
+                title="Se déconnecter"
+                className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Se déconnecter"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>

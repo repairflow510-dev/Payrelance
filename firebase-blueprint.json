@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "users": {
+      "title": "Utilisateurs",
+      "description": "Comptes utilisateurs avec nom, prénom, email et téléphone.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unique de l'utilisateur" },
+        "name": { "type": "string", "description": "Nom complet" },
+        "firstName": { "type": "string", "description": "Prénom" },
+        "lastName": { "type": "string", "description": "Nom de famille" },
+        "email": { "type": "string", "format": "email", "description": "Email pro" },
+        "phone": { "type": "string", "description": "Numéro de téléphone ou WhatsApp" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Date de création" }
+      },
+      "required": ["id", "name", "email", "createdAt"]
+    },
+    "memberships": {
+      "title": "Membres d'entreprise (RBAC)",
+      "description": "Rôles et rattachements des utilisateurs aux entreprises.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unique de la relation" },
+        "userId": { "type": "string", "description": "ID de l'utilisateur" },
+        "companyId": { "type": "string", "description": "ID de l'entreprise" },
+        "role": { "type": "string", "enum": ["OWNER", "ADMIN", "ACCOUNTANT", "SALES", "VIEWER"], "description": "Rôle" },
+        "userName": { "type": "string", "description": "Nom du membre" },
+        "userEmail": { "type": "string", "description": "Email du membre" },
+        "userPhone": { "type": "string", "description": "Téléphone" },
+        "status": { "type": "string", "description": "Statut (ACTIVE, INVITED, etc.)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Date" }
+      },
+      "required": ["id", "userId", "companyId", "role", "createdAt"]
+    },
+    "password_resets": {
+      "title": "Codes OTP de réinitialisation",
+      "description": "Stockage temporaire sécurisé des codes OTP envoyés par Email ou WhatsApp.",
+      "type": "object",
+      "properties": {
+        "target": { "type": "string", "description": "Email ou numéro WhatsApp" },
+        "channel": { "type": "string", "enum": ["EMAIL", "WHATSAPP"], "description": "Canal d'envoi" },
+        "otp": { "type": "string", "description": "Code numérique à 6 chiffres" },
+        "expiresAt": { "type": "string", "format": "date-time", "description": "Date d'expiration" },
+        "used": { "type": "boolean", "description": "Indique si le code a été consommé" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Date d'émission" }
+      },
+      "required": ["target", "channel", "otp", "expiresAt", "used", "createdAt"]
+    }
+  }
+}

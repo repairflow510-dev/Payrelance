@@ -24,6 +24,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   phone?: string;
   avatarUrl?: string;
   createdAt: string;
@@ -55,6 +57,8 @@ export interface Membership {
   role: UserRole;
   userName?: string;
   userEmail?: string;
+  userPhone?: string;
+  status?: 'ACTIVE' | 'INVITED' | 'SUSPENDED';
   createdAt: string;
 }
 
@@ -204,4 +208,17 @@ export interface AppNotification {
   read: boolean;
   link?: string;
   createdAt: string;
+}
+
+export interface ReminderJobResult {
+  invoicesEvaluated: number;
+  remindersTriggered: number;
+  remindersSent: number;
+  details: {
+    invoiceNumber: string;
+    customerName: string;
+    stepTitle: string;
+    channel: Channel;
+    status: string;
+  }[];
 }

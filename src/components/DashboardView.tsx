@@ -4,11 +4,16 @@ import {
   Send, CheckCircle2, ArrowRight, ShieldAlert, CalendarClock,
   Sparkles, RefreshCw, BarChart2, PieChart as PieChartIcon, 
   Layers, ArrowUpRight, ArrowDownRight, Users, Download, 
-  ChevronDown, FileSpreadsheet, Check
+  ChevronDown, FileSpreadsheet, Check, Bell, FileText, Mail
 } from 'lucide-react';
 import { Invoice, Payment, Customer, PaymentPromise } from '../types';
 import { formatCurrency, calculateDaysOverdue } from '../lib/constants';
 import { Sparkline } from './Sparkline';
+import FloatingQuickAction from './FloatingQuickAction';
+import SmartAnomalyDetector from './SmartAnomalyDetector';
+import DashboardCalendarView from './DashboardCalendarView';
+import MonthlyReportModal from './MonthlyReportModal';
+import { useAuth } from '../lib/authContext';
 
 interface DashboardViewProps {
   invoices: Invoice[];
@@ -19,6 +24,10 @@ interface DashboardViewProps {
   onNavigate: (tab: string, filter?: string) => void;
   onRunEngine: () => void;
   engineRunning: boolean;
+  onAddInvoice?: () => void;
+  onCreateCustomer?: () => void;
+  onOpenNotifications?: () => void;
+  unreadNotifsCount?: number;
 }
 
 type ExportType = 'INVOICES_ALL' | 'INVOICES_OVERDUE' | 'PAYMENTS' | 'CUSTOMERS_STATUS';
@@ -32,9 +41,15 @@ export default function DashboardView({
   onNavigate,
   onRunEngine,
   engineRunning,
+  onAddInvoice,
+  onCreateCustomer,
+  onOpenNotifications,
+  unreadNotifsCount = 0,
 }: DashboardViewProps) {
+  const { currentCompany } = useAuth();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportSuccessMsg, setExportSuccessMsg] = useState<string | null>(null);
+  const [monthlyReportOpen, setMonthlyReportOpen] = useState(false);
 
   // Calculations
   const totalInvoiced = invoices.reduce((acc, inv) => acc + (inv.amount || 0), 0);
@@ -114,6 +129,15 @@ export default function DashboardView({
     Math.max(25, Math.round(paymentRate * 0.85)),
     Math.max(30, Math.round(paymentRate * 0.92)),
     paymentRate || 50,
+  ];
+
+  const dsoTrend = [
+    Math.round(estimatedDSO * 1.35),
+    Math.round(estimatedDSO * 1.25),
+    Math.round(estimatedDSO * 1.15),
+    Math.round(estimatedDSO * 1.08),
+    Math.round(estimatedDSO * 1.02),
+    estimatedDSO || 45,
   ];
 
   // Global CSV Export Handler
@@ -320,10 +344,37 @@ export default function DashboardView({
                       <div className="text-[10px] text-slate-500">Soldes dus et retards par débiteur</div>
                     </div>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportMenuOpen(false);
+                      setMonthlyReportOpen(true);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-blue-50 text-blue-800 font-medium flex items-center gap-2 transition-colors cursor-pointer border-t border-slate-100"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <div>
+                      <div className="font-bold">Rapport Mensuel PDF</div>
+                      <div className="text-[10px] text-blue-600">Graphiques, DSO et envoi par email</div>
+                    </div>
+                  </button>
                 </div>
               </>
             )}
           </div>
+
+          {/* Dedicated Monthly PDF Report Button */}
+          <button
+            type="button"
+            onClick={() => setMonthlyReportOpen(true)}
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            title="Générer le rapport mensuel PDF exécutif et l'envoyer par email"
+          >
+            <FileText className="w-4 h-4 text-blue-600" />
+            <span className="hidden sm:inline">Rapport Mensuel PDF</span>
+            <span className="sm:hidden">Rapport PDF</span>
+          </button>
 
           {/* Engine Trigger button */}
           <button
@@ -335,6 +386,24 @@ export default function DashboardView({
             <RefreshCw className={`w-4 h-4 ${engineRunning ? 'animate-spin' : ''}`} />
             <span>{engineRunning ? 'Envois...' : 'Exécuter les relances'}</span>
           </button>
+
+          {/* Interactive Notifications Button */}
+          {onOpenNotifications && (
+            <button
+              type="button"
+              onClick={onOpenNotifications}
+              className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 relative transition-all cursor-pointer shadow-xs active:scale-95"
+              title="Centre d'alertes & notifications"
+              aria-label="Ouvrir le volet d'alertes"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotifsCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center px-1 shadow-sm">
+                  {unreadNotifsCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -346,8 +415,8 @@ export default function DashboardView({
         </div>
       )}
 
-      {/* 2. Top Metric Cards: Responsive Grid with Sparklines */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+      {/* 2. Top Metric Cards: Responsive Grid with Sparklines & DSO Analysis */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
         
         {/* Total Facturé with Sparkline */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2 hover:border-slate-300 transition-all">
@@ -367,8 +436,8 @@ export default function DashboardView({
                 data={invoicedTrend}
                 color="#2563eb"
                 fillColor="rgba(37, 99, 235, 0.08)"
-                width={100}
-                height={32}
+                width={70}
+                height={28}
               />
             </div>
           </div>
@@ -377,14 +446,14 @@ export default function DashboardView({
             <span className="flex items-center gap-1 text-emerald-600 font-semibold">
               <ArrowUpRight className="w-3.5 h-3.5" /> +12.4% vs M-1
             </span>
-            <span className="text-slate-400 font-mono">DSO ~{estimatedDSO}j</span>
+            <span className="text-slate-400 font-mono">{invoices.length} factures</span>
           </div>
         </div>
 
         {/* Taux d'encaissement (Payment Rate) with Sparkline */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2 hover:border-slate-300 transition-all">
           <div className="flex items-center justify-between text-emerald-700 text-xs font-semibold uppercase tracking-wider">
-            <span>Taux de Recouvrement</span>
+            <span>Taux Recouvrement</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
               <TrendingUp className="w-4 h-4" />
             </div>
@@ -399,8 +468,8 @@ export default function DashboardView({
                 data={paymentRateTrend}
                 color="#059669"
                 fillColor="rgba(5, 150, 105, 0.08)"
-                width={100}
-                height={32}
+                width={70}
+                height={28}
               />
             </div>
           </div>
@@ -413,11 +482,65 @@ export default function DashboardView({
           </div>
         </div>
 
+        {/* Délai Moyen de Paiement (DSO) Card for SME Cashflow */}
+        <div 
+          onClick={() => onNavigate('reports')} 
+          className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
+          title="Consulter l'analyse détaillée du DSO dans les Rapports"
+        >
+          <div className="flex items-center justify-between text-indigo-700 text-xs font-semibold uppercase tracking-wider">
+            <span className="flex items-center gap-1">
+              Délai Moyen (DSO)
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-105 transition-transform">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline gap-1">
+              <span className={`text-xl sm:text-2xl font-extrabold truncate ${
+                estimatedDSO <= 45 ? 'text-emerald-600' : estimatedDSO <= 60 ? 'text-amber-600' : 'text-rose-600'
+              }`}>
+                {estimatedDSO}
+              </span>
+              <span className="text-xs font-bold text-slate-500">jours</span>
+            </div>
+            <div className="hidden sm:block">
+              <Sparkline
+                data={dsoTrend}
+                color={estimatedDSO <= 45 ? '#059669' : estimatedDSO <= 60 ? '#d97706' : '#e11d48'}
+                fillColor={estimatedDSO <= 45 ? 'rgba(5, 150, 105, 0.08)' : estimatedDSO <= 60 ? 'rgba(217, 119, 6, 0.08)' : 'rgba(225, 29, 72, 0.08)'}
+                width={70}
+                height={28}
+              />
+            </div>
+          </div>
+
+          <div className="text-[11px] flex items-center justify-between border-t border-slate-100 pt-2">
+            <span className={`font-semibold inline-flex items-center gap-1 ${
+              estimatedDSO <= 45 
+                ? 'text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded' 
+                : estimatedDSO <= 60 
+                ? 'text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded' 
+                : 'text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded'
+            }`}>
+              {estimatedDSO <= 45 ? '● Excellent' : estimatedDSO <= 60 ? '● Vigilance' : '● Risque Tréso'}
+            </span>
+            <span className="text-indigo-600 group-hover:underline font-medium text-[10px] flex items-center">
+              Détails <ArrowRight className="w-2.5 h-2.5 ml-0.5" />
+            </span>
+          </div>
+        </div>
+
         {/* Créances en Retard */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2 hover:border-slate-300 transition-all">
+        <div 
+          onClick={() => onNavigate('invoices', 'OVERDUE')}
+          className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2 hover:border-rose-300 hover:shadow-md transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between text-rose-700 text-xs font-semibold uppercase tracking-wider">
             <span>Créances en Retard</span>
-            <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
+            <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600 group-hover:scale-105 transition-transform">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
@@ -425,15 +548,15 @@ export default function DashboardView({
             {formatCurrency(totalOverdueAmount, currency)}
           </div>
           <div className="text-[11px] text-rose-700 font-medium flex items-center justify-between border-t border-slate-100 pt-2">
-            <span>{overdueInvoices.length} factures à relancer</span>
-            <span className="font-bold">{overdueRate}% du CA</span>
+            <span>{overdueInvoices.length} factures échues</span>
+            <span className="font-bold">{overdueRate}% CA</span>
           </div>
         </div>
 
         {/* Récupéré via Relances */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2 hover:border-slate-300 transition-all">
           <div className="flex items-center justify-between text-blue-700 text-xs font-semibold uppercase tracking-wider">
-            <span>Récupéré via PayRelance</span>
+            <span>Encaissé via Relances</span>
             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -447,6 +570,15 @@ export default function DashboardView({
           </div>
         </div>
       </div>
+
+      {/* 2.5 AI-Powered Smart Anomaly Detection & High-Risk Recovery Actions (Gemini) */}
+      <SmartAnomalyDetector
+        invoices={invoices}
+        customers={customers}
+        currency={currency}
+        estimatedDSO={estimatedDSO}
+        onNavigate={onNavigate}
+      />
 
       {/* 3. Action Required Priority Box */}
       <div className="bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-amber-50/90 border border-amber-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
@@ -654,6 +786,14 @@ export default function DashboardView({
         </div>
       </div>
 
+      {/* 4.5 Interactive Calendar View for Invoices & Scheduled Reminders */}
+      <DashboardCalendarView
+        invoices={invoices}
+        promises={promises}
+        currency={currency}
+        onNavigate={onNavigate}
+      />
+
       {/* 5. Detailed Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         
@@ -763,6 +903,28 @@ export default function DashboardView({
           </div>
         </div>
       </div>
+
+      {/* Monthly Report Modal */}
+      {monthlyReportOpen && (
+        <MonthlyReportModal
+          isOpen={true}
+          onClose={() => setMonthlyReportOpen(false)}
+          invoices={invoices}
+          payments={payments}
+          customers={customers}
+          promises={promises}
+          company={currentCompany}
+          currency={currency}
+        />
+      )}
+
+      {/* Floating Quick Action Button */}
+      <FloatingQuickAction
+        onAddInvoice={onAddInvoice || (() => onNavigate('invoices'))}
+        onCreateCustomer={onCreateCustomer || (() => onNavigate('customers'))}
+        onRunEngine={onRunEngine}
+        engineRunning={engineRunning}
+      />
     </div>
   );
 }

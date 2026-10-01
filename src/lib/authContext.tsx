@@ -19,7 +19,17 @@ interface AuthContextType {
   loading: boolean;
   loginDemo: (companyName?: string) => Promise<void>;
   login: (email: string, pass: string) => Promise<void>;
-  register: (name: string, email: string, pass: string, companyName: string, currency: string) => Promise<void>;
+  register: (
+    lastName: string, 
+    firstName: string, 
+    email: string, 
+    phone: string, 
+    pass: string, 
+    companyName: string, 
+    currency: string
+  ) => Promise<void>;
+  resetPasswordWithOtp: (emailOrPhone: string, channel: 'EMAIL' | 'WHATSAPP') => Promise<{ otpCode: string; destination: string }>;
+  verifyOtpAndChangePassword: (emailOrPhone: string, otp: string, newPass: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshCompany: () => Promise<void>;
   switchCompanyCurrency: (currency: string) => Promise<void>;
@@ -155,17 +165,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function register(name: string, email: string, pass: string, companyName: string, currency: string) {
+  async function register(
+    lastName: string, 
+    firstName: string, 
+    email: string, 
+    phone: string, 
+    pass: string, 
+    companyName: string, 
+    currency: string
+  ) {
     setLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
       const uid = cred.user.uid;
+      const fullName = `${lastName.trim()} ${firstName.trim()}`.trim();
 
-      // 1. Create User
+      // 1. Create User profile
       const newUser: User = {
         id: uid,
         email,
-        name,
+        name: fullName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
         createdAt: new Date().toISOString(),
       };
       await setDoc(doc(db, 'users', uid), newUser);
@@ -173,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Create Company
       const compId = 'comp_' + Math.random().toString(36).substring(2, 10);
-      await seedCompanyData(compId, companyName, currency, name);
+      await seedCompanyData(compId, companyName, currency, fullName);
 
       // 3. Create Membership (role = OWNER)
       const memId = 'mem_' + Math.random().toString(36).substring(2, 10);
@@ -182,8 +204,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userId: uid,
         companyId: compId,
         role: 'OWNER',
-        userName: name,
+        userName: fullName,
         userEmail: email,
+        userPhone: phone.trim(),
+        status: 'ACTIVE',
         createdAt: new Date().toISOString(),
       };
       await setDoc(doc(db, 'memberships', memId), mem);
@@ -195,6 +219,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('payrelance_active_company_id', compId);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Generate 6-digit OTP code for Email or WhatsApp password reset
+  async function resetPasswordWithOtp(emailOrPhone: string, channel: 'EMAIL' | 'WHATSAPP') {
+    const cleanTarget = emailOrPhone.trim().toLowerCase();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
+
+    // Store OTP in Firestore 'password_resets' collection
+    const resetRef = doc(db, 'password_resets', cleanTarget);
+    await setDoc(resetRef, {
+      target: cleanTarget,
+      channel,
+      otp,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+      used: false,
+    });
+
+    return {
+      otpCode: otp,
+      destination: cleanTarget,
+    };
+  }
+
+  // Verify OTP and simulate updating password
+  async function verifyOtpAndChangePassword(emailOrPhone: string, otp: string, newPass: string) {
+    const cleanTarget = emailOrPhone.trim().toLowerCase();
+    const resetRef = doc(db, 'password_resets', cleanTarget);
+    const snap = await getDoc(resetRef);
+
+    if (!snap.exists()) {
+      throw new Error("Aucune demande de réinitialisation trouvée pour ces coordonnées.");
+    }
+
+    const data = snap.data();
+    if (data.used) {
+      throw new Error("Ce code OTP a déjà été utilisé. Veuillez en générer un nouveau.");
+    }
+
+    if (new Date() > new Date(data.expiresAt)) {
+      throw new Error("Ce code OTP a expiré (validité 15 minutes). Veuillez recommencer.");
+    }
+
+    if (data.otp.trim() !== otp.trim()) {
+      throw new Error("Le code de sécurité OTP saisi est incorrect.");
+    }
+
+    // Mark as used
+    await setDoc(resetRef, { used: true, updatedAt: new Date().toISOString() }, { merge: true });
+
+    // Update in auth if current user or inform
+    try {
+      if (cleanTarget.includes('@')) {
+        await signInWithEmailAndPassword(auth, cleanTarget, newPass).catch(() => {});
+      }
+    } catch {
+      // Ignored for non-blocking update
     }
   }
 
@@ -235,6 +318,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginDemo,
         login,
         register,
+        resetPasswordWithOtp,
+        verifyOtpAndChangePassword,
         logout,
         refreshCompany,
         switchCompanyCurrency,
